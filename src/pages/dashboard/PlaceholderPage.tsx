@@ -15,7 +15,7 @@ export default function PlaceholderPage({ title, description, ctaLabel = "Coming
         <h1 className="text-2xl md:text-3xl font-bold tracking-tight">{title}</h1>
         <p className="text-sm text-muted-foreground mt-1">{description}</p>
       </div>
-      <Card className="p-12 text-center shadow-card">
+      <Card className="p-12 text-center shadow-2xl">
         <Badge variant="secondary" className="mb-4">In progress</Badge>
         <h3 className="text-lg font-semibold">This page is being built</h3>
         <p className="mt-2 text-sm text-muted-foreground max-w-md mx-auto">
