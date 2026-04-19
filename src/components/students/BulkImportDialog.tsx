@@ -27,15 +27,15 @@ export function BulkImportDialog({ onImport }: Props) {
     setFileName(file.name);
     const result = await parseFile(file);
     setBusy(false);
-    if (result.ok) {
-      onImport(result.students);
-      toast.success(`Imported ${result.students.length} student(s)`);
-      reset();
-      setOpen(false);
-    } else {
+    if (result.ok === false) {
       setErrors(result.errors);
       toast.error(`Import rejected — ${result.errors.length} error(s) found`);
+      return;
     }
+    onImport(result.students);
+    toast.success(`Imported ${result.students.length} student(s)`);
+    reset();
+    setOpen(false);
   };
 
   const reset = () => {
