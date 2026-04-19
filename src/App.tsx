@@ -9,6 +9,7 @@ import Onboarding from "./pages/Onboarding.tsx";
 import DashboardLayout from "./layouts/DashboardLayout.tsx";
 import Dashboard from "./pages/dashboard/Dashboard.tsx";
 import PlaceholderPage from "./pages/dashboard/PlaceholderPage.tsx";
+import Students from "./pages/dashboard/Students.tsx";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
@@ -25,7 +26,7 @@ const App = () => (
           <Route path="/onboarding" element={<Onboarding />} />
           <Route path="/dashboard" element={<DashboardLayout />}>
             <Route index element={<Dashboard />} />
-            <Route path="students" element={<PlaceholderPage title="Students" description="Manage student records, classes, and admissions." />} />
+            <Route path="students" element={<Students />} />
             <Route path="fees" element={<PlaceholderPage title="Fee Management" description="Track payments, dues, and generate invoices." />} />
             <Route path="teachers" element={<PlaceholderPage title="Teachers" description="Manage teaching staff and their assignments." />} />
             <Route path="parents" element={<PlaceholderPage title="Parents" description="Communicate with parents and share updates." />} />
