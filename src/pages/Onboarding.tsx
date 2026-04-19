@@ -7,6 +7,7 @@ import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { ArrowLeft, ArrowRight, CheckCircle2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 type FormState = {
   fullName: string;
@@ -28,6 +29,7 @@ const steps = [
 export default function Onboarding() {
   const navigate = useNavigate();
   const [step, setStep] = useState(0);
+  const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState<FormState>({
     fullName: "",
     email: "",
@@ -49,14 +51,59 @@ export default function Onboarding() {
     return false;
   };
 
+  const finish = async () => {
+    setSubmitting(true);
+    try {
+      const { data: signUp, error: signUpErr } = await supabase.auth.signUp({
+        email: form.email,
+        password: form.password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/dashboard`,
+          data: { full_name: form.fullName },
+        },
+      });
+      if (signUpErr) throw signUpErr;
+
+      let userId = signUp.user?.id;
+      // If session wasn't returned (rare), sign in to obtain one for the insert
+      if (!signUp.session) {
+        const { data: signIn, error: signInErr } = await supabase.auth.signInWithPassword({
+          email: form.email,
+          password: form.password,
+        });
+        if (signInErr) throw signInErr;
+        userId = signIn.user?.id;
+      }
+      if (!userId) throw new Error("Could not establish a session.");
+
+      const { error: schoolErr } = await supabase.from("schools").insert({
+        owner_id: userId,
+        name: form.schoolName.trim(),
+        city: form.city.trim(),
+        student_count_estimate: form.studentCount,
+      });
+      if (schoolErr) throw schoolErr;
+
+      toast({ title: "Welcome to ShikshaHub!", description: `${form.schoolName} is ready to go.` });
+      navigate("/dashboard");
+    } catch (err: any) {
+      toast({
+        title: "Could not finish setup",
+        description: err.message ?? "Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const next = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!canProceed()) return;
+    if (!canProceed() || submitting) return;
     if (step < steps.length - 1) {
       setStep((s) => s + 1);
     } else {
-      toast({ title: "Welcome to ShikshaHub!", description: `${form.schoolName} is ready to go.` });
-      navigate("/dashboard");
+      void finish();
     }
   };
 
@@ -78,7 +125,6 @@ export default function Onboarding() {
 
       <main className="flex-1 flex items-start md:items-center justify-center px-4 py-8 md:py-12">
         <div className="w-full max-w-lg">
-          {/* Progress */}
           <div className="mb-6">
             <div className="flex items-center justify-between text-xs text-muted-foreground mb-2">
               <span>Step {step + 1} of {steps.length}</span>
@@ -172,12 +218,17 @@ export default function Onboarding() {
                   type="button"
                   variant="ghost"
                   onClick={() => setStep((s) => Math.max(0, s - 1))}
-                  disabled={step === 0}
+                  disabled={step === 0 || submitting}
                 >
                   <ArrowLeft className="h-4 w-4" /> Back
                 </Button>
-                <Button type="submit" disabled={!canProceed()} className="bg-primary hover:bg-primary/90">
-                  {step === steps.length - 1 ? "Finish setup" : "Continue"} <ArrowRight className="h-4 w-4" />
+                <Button type="submit" disabled={!canProceed() || submitting} className="bg-primary hover:bg-primary/90">
+                  {submitting
+                    ? "Setting up…"
+                    : step === steps.length - 1
+                      ? "Finish setup"
+                      : "Continue"}{" "}
+                  <ArrowRight className="h-4 w-4" />
                 </Button>
               </div>
             </form>

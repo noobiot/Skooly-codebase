@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -9,34 +9,122 @@ import { Search, Users } from "lucide-react";
 import { AddStudentDialog } from "@/components/students/AddStudentDialog";
 import { BulkImportDialog } from "@/components/students/BulkImportDialog";
 import type { Student, StudentInput } from "@/lib/studentSchema";
+import { supabase } from "@/integrations/supabase/client";
+import { useSchool } from "@/hooks/useSchool";
+import { toast } from "sonner";
 
-const seed: Student[] = [
-  {
-    id: "s1", name: "Aarav Sharma", rollNo: "2024-001", className: "8", section: "B",
-    gender: "Male", dateOfBirth: "2011-05-14", parentName: "Rajesh Sharma",
-    phone: "+91 9876543210", email: "rajesh@example.com", address: "12 MG Road, Indore",
-    admissionDate: "2023-04-10", bloodGroup: "O+", emergencyContact: "+91 9123456780",
-  },
-  {
-    id: "s2", name: "Priya Iyer", rollNo: "2024-002", className: "5", section: "A",
-    gender: "Female", dateOfBirth: "2014-08-22", parentName: "Lakshmi Iyer",
-    phone: "+91 9988776655", email: "lakshmi@example.com", address: "44 Park Street, Indore",
-    admissionDate: "2024-04-08", bloodGroup: "A+", emergencyContact: "+91 9000011111",
-  },
-];
+type DbRow = {
+  id: string;
+  name: string;
+  roll_no: string;
+  class_name: string;
+  section: string;
+  gender: string;
+  date_of_birth: string;
+  parent_name: string;
+  phone: string;
+  email: string | null;
+  address: string;
+  admission_date: string;
+  blood_group: string;
+  emergency_contact: string;
+};
 
-const newId = () =>
-  typeof crypto !== "undefined" && "randomUUID" in crypto
-    ? crypto.randomUUID()
-    : `s_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+const fromDb = (r: DbRow): Student => ({
+  id: r.id,
+  name: r.name,
+  rollNo: r.roll_no,
+  className: r.class_name,
+  section: r.section,
+  gender: r.gender as Student["gender"],
+  dateOfBirth: r.date_of_birth,
+  parentName: r.parent_name,
+  phone: r.phone,
+  email: r.email ?? "",
+  address: r.address,
+  admissionDate: r.admission_date,
+  bloodGroup: r.blood_group as Student["bloodGroup"],
+  emergencyContact: r.emergency_contact,
+});
+
+const toDb = (s: StudentInput, schoolId: string) => ({
+  school_id: schoolId,
+  name: s.name,
+  roll_no: s.rollNo,
+  class_name: s.className,
+  section: s.section,
+  gender: s.gender,
+  date_of_birth: s.dateOfBirth,
+  parent_name: s.parentName,
+  phone: s.phone,
+  email: s.email || null,
+  address: s.address,
+  admission_date: s.admissionDate,
+  blood_group: s.bloodGroup,
+  emergency_contact: s.emergencyContact,
+});
 
 export default function Students() {
-  const [students, setStudents] = useState<Student[]>(seed);
+  const { school, loading: schoolLoading } = useSchool();
+  const [students, setStudents] = useState<Student[]>([]);
+  const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
 
-  const addOne = (s: StudentInput) => setStudents((prev) => [{ ...s, id: newId() }, ...prev]);
-  const addMany = (rows: StudentInput[]) =>
-    setStudents((prev) => [...rows.map((r) => ({ ...r, id: newId() })), ...prev]);
+  useEffect(() => {
+    if (schoolLoading) return;
+    if (!school) {
+      setStudents([]);
+      setLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setLoading(true);
+    supabase
+      .from("students")
+      .select("*")
+      .eq("school_id", school.id)
+      .order("created_at", { ascending: false })
+      .then(({ data, error }) => {
+        if (cancelled) return;
+        if (error) {
+          toast.error("Failed to load students", { description: error.message });
+          setStudents([]);
+        } else {
+          setStudents((data as DbRow[]).map(fromDb));
+        }
+        setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [school, schoolLoading]);
+
+  const addOne = async (s: StudentInput) => {
+    if (!school) return;
+    const { data, error } = await supabase
+      .from("students")
+      .insert(toDb(s, school.id))
+      .select()
+      .single();
+    if (error) {
+      toast.error("Could not add student", { description: error.message });
+      return;
+    }
+    setStudents((prev) => [fromDb(data as DbRow), ...prev]);
+  };
+
+  const addMany = async (rows: StudentInput[]) => {
+    if (!school || rows.length === 0) return;
+    const { data, error } = await supabase
+      .from("students")
+      .insert(rows.map((r) => toDb(r, school.id)))
+      .select();
+    if (error) {
+      toast.error("Bulk import failed", { description: error.message });
+      return;
+    }
+    setStudents((prev) => [...(data as DbRow[]).map(fromDb), ...prev]);
+  };
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -61,6 +149,12 @@ export default function Students() {
           <AddStudentDialog onAdd={addOne} />
         </div>
       </div>
+
+      {!schoolLoading && !school && (
+        <Card className="p-6 text-sm text-muted-foreground">
+          Your school profile isn't set up yet. Please complete onboarding.
+        </Card>
+      )}
 
       <Card className="p-4 shadow-soft">
         <div className="flex items-center justify-between gap-4 mb-4">
@@ -94,7 +188,13 @@ export default function Students() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filtered.length === 0 ? (
+              {loading ? (
+                <TableRow>
+                  <TableCell colSpan={8} className="text-center text-muted-foreground py-10">
+                    Loading students…
+                  </TableCell>
+                </TableRow>
+              ) : filtered.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={8} className="text-center text-muted-foreground py-10">
                     No students yet. Add one or import a file to get started.
