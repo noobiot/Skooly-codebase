@@ -12,10 +12,27 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { mockSchool } from "@/lib/mockData";
+import { useAuth } from "@/hooks/useAuth";
+import { useSchool } from "@/hooks/useSchool";
+
+function initialsFrom(name?: string | null, email?: string | null) {
+  const src = (name || email || "U").trim();
+  const parts = src.split(/\s+/).slice(0, 2);
+  return parts.map((p) => p[0]?.toUpperCase()).join("") || "U";
+}
 
 export default function DashboardLayout() {
   const navigate = useNavigate();
+  const { user, signOut } = useAuth();
+  const { school, loading } = useSchool();
+
+  const fullName = (user?.user_metadata as { full_name?: string } | null)?.full_name ?? null;
+  const initials = initialsFrom(fullName, user?.email);
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate("/");
+  };
 
   return (
     <SidebarProvider>
@@ -26,7 +43,9 @@ export default function DashboardLayout() {
             <SidebarTrigger className="text-foreground" />
             <div className="flex flex-1 items-center gap-2 min-w-0">
               <span className="text-sm text-muted-foreground hidden sm:inline">School:</span>
-              <span className="font-semibold truncate">{mockSchool.name}</span>
+              <span className="font-semibold truncate">
+                {loading ? "Loading…" : school?.name ?? "No school yet"}
+              </span>
             </div>
             <Button variant="ghost" size="icon" className="relative" aria-label="Notifications">
               <Bell className="h-5 w-5" />
@@ -36,20 +55,24 @@ export default function DashboardLayout() {
               <DropdownMenuTrigger asChild>
                 <button className="rounded-full focus:outline-none focus:ring-2 focus:ring-ring">
                   <Avatar className="h-9 w-9">
-                    <AvatarFallback className="bg-primary text-primary-foreground font-semibold">RK</AvatarFallback>
+                    <AvatarFallback className="bg-primary text-primary-foreground font-semibold">
+                      {initials}
+                    </AvatarFallback>
                   </Avatar>
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuLabel>
                   <div className="flex flex-col">
-                    <span>Rajesh Kumar</span>
-                    <span className="text-xs font-normal text-muted-foreground">Principal</span>
+                    <span>{fullName ?? "School Owner"}</span>
+                    <span className="text-xs font-normal text-muted-foreground truncate">
+                      {user?.email}
+                    </span>
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => navigate("/dashboard/settings")}>Settings</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => navigate("/")}>Sign out</DropdownMenuItem>
+                <DropdownMenuItem onClick={handleSignOut}>Sign out</DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </header>

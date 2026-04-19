@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 const Login = () => {
   const navigate = useNavigate();
@@ -12,17 +13,21 @@ const Login = () => {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    setLoading(false);
+    if (error) {
       toast({
-        title: "Welcome back!",
-        description: `Signed in as ${email || "demo user"}.`,
+        title: "Sign in failed",
+        description: error.message,
+        variant: "destructive",
       });
-      navigate("/dashboard");
-    }, 500);
+      return;
+    }
+    toast({ title: "Welcome back!", description: `Signed in as ${email}.` });
+    navigate("/dashboard");
   };
 
   return (
@@ -54,9 +59,6 @@ const Login = () => {
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label htmlFor="password">Password</Label>
-                  <Link to="#" className="text-sm text-muted-foreground hover:text-foreground">
-                    Forgot password?
-                  </Link>
                 </div>
                 <Input
                   id="password"

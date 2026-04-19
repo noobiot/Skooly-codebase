@@ -14,13 +14,110 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      schools: {
+        Row: {
+          city: string
+          created_at: string
+          id: string
+          name: string
+          owner_id: string
+          student_count_estimate: string | null
+          updated_at: string
+        }
+        Insert: {
+          city: string
+          created_at?: string
+          id?: string
+          name: string
+          owner_id: string
+          student_count_estimate?: string | null
+          updated_at?: string
+        }
+        Update: {
+          city?: string
+          created_at?: string
+          id?: string
+          name?: string
+          owner_id?: string
+          student_count_estimate?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      students: {
+        Row: {
+          address: string
+          admission_date: string
+          blood_group: string
+          class_name: string
+          created_at: string
+          date_of_birth: string
+          email: string | null
+          emergency_contact: string
+          gender: string
+          id: string
+          name: string
+          parent_name: string
+          phone: string
+          roll_no: string
+          school_id: string
+          section: string
+          updated_at: string
+        }
+        Insert: {
+          address: string
+          admission_date: string
+          blood_group: string
+          class_name: string
+          created_at?: string
+          date_of_birth: string
+          email?: string | null
+          emergency_contact: string
+          gender: string
+          id?: string
+          name: string
+          parent_name: string
+          phone: string
+          roll_no: string
+          school_id: string
+          section: string
+          updated_at?: string
+        }
+        Update: {
+          address?: string
+          admission_date?: string
+          blood_group?: string
+          class_name?: string
+          created_at?: string
+          date_of_birth?: string
+          email?: string | null
+          emergency_contact?: string
+          gender?: string
+          id?: string
+          name?: string
+          parent_name?: string
+          phone?: string
+          roll_no?: string
+          school_id?: string
+          section?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "students_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      is_school_owner: { Args: { _school_id: string }; Returns: boolean }
     }
     Enums: {
       [_ in never]: never
